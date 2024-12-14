@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted, useTemplateRef, defineExpose, defineEmits, onUnmounted } from 'vue'
 import cv from "@techstark/opencv-js";
+import { defineEmits, defineExpose, onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
 
 defineExpose({
-    startCameraPreview
+    startCameraPreview,
 })
 
-const emit = defineEmits(['error-loading'])
+const emit = defineEmits<{
+    'camera-ready': [deviceId: string, deviceIds: string[]]
+    'error-loading': []
+}>()
 
 const FPS = 30;
 
@@ -53,6 +56,8 @@ onUnmounted(() => {
     }
 })
 
+/// Methods
+
 async function startCameraPreview() {
     const cameraVideoStream = await startCameraPreviewFor();
 
@@ -62,8 +67,12 @@ async function startCameraPreview() {
     dataCamera.value.cameraDeviceId = cameraVideoStream.getVideoTracks()[0].getSettings().deviceId ?? availableCameras[0].deviceId;
     dataCamera.value.cameraVideoStream = cameraVideoStream;
 
+    emit('camera-ready', dataCamera.value.cameraDeviceId, availableCameras.map(c => c.deviceId))
+
     await processVideoCapture();
 }
+
+// Internal
 
 async function startCameraPreviewFor(deviceId?: string) {
     const cameraDeviceConstraint: MediaStreamConstraints = {
@@ -108,60 +117,7 @@ async function processVideoCapture() {
 
 <template>
     <video ref="video-el" class="hidden" autoplay />
-    <div class="flex camera-container w-screen h-screen">
-        <canvas ref="video-preview" class="relative h-full w-full" />
-        <div class="fixed preview-container" style="background: rgba(0,0,0,0.4);">
-            <div class="flex preview-overlay">
-                <div class="justify-self-center" @click="">
-                    <button class="text-gray-700 rounded-full bg-gray-50 hover:bg-gray-200 active:bg-gray-400 p-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <path
-                                d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94" />
-                        </svg>
-                    </button>
-                </div>
-                <div class="justify-self-center" @click="" v-if="dataCamera.availableCameras.length > 0">
-                    <button class="text-gray-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <canvas ref="video-preview" class="relative h-full w-full" />
 </template>
 
-<style lang="postcss" scoped>
-@media(orientation: landscape) {
-    .camera-container {
-        @apply flex-row items-center justify-center
-    }
-
-    .preview-container {
-        @apply top-0 right-0 w-1/12 h-full
-    }
-
-    .preview-overlay {
-        @apply flex-col p-4 items-center h-full
-    }
-}
-
-@media(orientation: portrait) {
-    .camera-container {
-        @apply flex-col items-center justify-center
-    }
-
-    .preview-container {
-        @apply bottom-0 left-0 w-full h-1/6
-    }
-
-    .preview-overlay {
-        @apply flex-row p-4 items-center h-full
-    }
-}
-</style>
+<style></style>
