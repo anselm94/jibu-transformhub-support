@@ -1,22 +1,24 @@
+<script setup>
+import { Dialog } from 'frappe-ui'
+import WebCam from '../components/WebCam.vue';
+import { ref, onMounted, useTemplateRef } from 'vue'
+
+const webcam = useTemplateRef("webcam");
+
+onMounted(() => {
+    webcam.value.startCameraPreview()
+})
+
+</script>
+
 <template>
-    <div class="max-w-3xl py-12 mx-auto">
-        <Button @click="showDialog = true">Open Dialog</Button>
-        <Dialog title="Title" v-model="showDialog"> Dialog content </Dialog>
+    <div :class="{ 'fullscreen-overlay': fullscreen }">
+        <WebCam ref="webcam" />
     </div>
 </template>
 
-<script>
-import { Dialog } from 'frappe-ui'
-
-export default {
-    name: 'Home',
-    data() {
-        return {
-            showDialog: false,
-        }
-    },
-    components: {
-        Dialog,
-    },
+<style>
+.fullscreen-overlay {
+    @apply fixed top-0 bottom-0 left-0 right-0 z-50 w-screen h-screen bg-black
 }
-</script>
+</style>
