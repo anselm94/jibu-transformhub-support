@@ -117,7 +117,7 @@ async function processVideoCapture() {
 
 <template>
     <video ref="video-el" class="hidden" autoplay />
-    <canvas ref="video-preview" class="relative h-full w-full" />
+    <canvas ref="video-preview" v-bind="{ ...$attrs }" />
 </template>
 
 <style></style>

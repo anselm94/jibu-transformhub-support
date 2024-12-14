@@ -25,12 +25,11 @@ function onCameraCapture() {
 function onCameraFlip() {
 
 }
-
 </script>
 
 <template>
     <div class="flex camera-container w-screen h-screen">
-        <WebCam ref="webcam" @camera-ready="onCameraReady" />
+        <WebCam ref="webcam" class="relative h-full w-full" @camera-ready="onCameraReady" />
         <div class="fixed preview-container" style="background: rgba(0,0,0,0.4);">
             <div class="flex preview-overlay">
                 <div class="w-6 h-6"></div>
