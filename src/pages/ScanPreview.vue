@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { useTemplateRef } from 'vue';
 import { useRouter } from 'vue-router';
 
-
 const router = useRouter()
+const scanPreview = useTemplateRef<HTMLCanvasElement>('scan-preview');
 
 /// Event Handlers
 
@@ -17,7 +18,9 @@ function onBackPress() {
 
 <template>
     <div class="flex camera-container w-screen h-screen">
-        <div class="relative h-full w-full"></div>
+        <div class="relative h-full w-full">
+            <canvas class="w-full h-full" ref="scan-preview"></canvas>
+        </div>
         <div class="fixed preview-container" style="background: rgba(0,0,0,0.4);">
             <div class="flex preview-overlay">
                 <div class="justify-self-center">

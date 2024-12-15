@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  presets: [require("frappe-ui/src/utils/tailwind.config")],
+  presets: [require("frappe-ui/src/tailwind/preset.js")],
   content: [
     "./index.html",
     "./src/**/*.{vue,js,ts,jsx,tsx}",

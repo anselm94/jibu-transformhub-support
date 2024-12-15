@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@techstark/opencv-js": "^4.10.0-release.1",
+    "fabric": "^6.5.3",
     "feather-icons": "^4.29.2",
     "frappe-ui": "^0.1.91",
     "pinia": "^2.3.0",
