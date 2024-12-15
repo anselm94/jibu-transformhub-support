@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import cv from "@techstark/opencv-js";
-import { defineEmits, defineExpose, onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
+import { defineEmits, defineExpose, onMounted, ref, useTemplateRef } from 'vue';
 
 defineExpose({
     startCameraPreview,
+    stopCameraPreview,
+    getImageData
 })
 
 const emit = defineEmits<{
@@ -24,7 +26,6 @@ const dataCamera = ref({
 
 const dataOpenCV = ref({
     videoCapture: null as cv.VideoCapture | null,
-    matSrc: null as cv.Mat | null,
     size: {
         preview: {
             width: 0,
@@ -39,20 +40,12 @@ onMounted(async () => {
     dataOpenCV.value.size.preview.width = previewWidth;
     dataOpenCV.value.size.preview.height = previewHeight;
     if (videoEl.value && canvasPreview.value) {
-        videoEl.value.width = canvasPreview.value.width = previewWidth;
-        videoEl.value.height = canvasPreview.value.height = previewHeight;
+        videoEl.value.width = previewWidth;
+        videoEl.value.height = previewHeight;
+        canvasPreview.value.width = previewWidth;
+        canvasPreview.value.height = previewHeight;
 
         dataOpenCV.value.videoCapture = new cv.VideoCapture(videoEl.value)
-    }
-
-    dataOpenCV.value.matSrc = new cv.Mat(previewWidth, previewHeight, cv.CV_8UC4);
-
-    await startCameraPreview();
-})
-
-onUnmounted(() => {
-    if (dataCamera.value.cameraVideoStream) {
-        dataCamera.value.cameraVideoStream.getTracks().forEach(track => track.stop());
     }
 })
 
@@ -70,6 +63,25 @@ async function startCameraPreview() {
     emit('camera-ready', dataCamera.value.cameraDeviceId, availableCameras.map(c => c.deviceId))
 
     await processVideoCapture();
+}
+
+function stopCameraPreview() {
+    if (dataCamera.value.cameraVideoStream) {
+        dataCamera.value.cameraVideoStream.getVideoTracks().forEach(track => {
+            track.stop()
+        });
+    }
+    if (videoEl.value) {
+        videoEl.value.srcObject = null;
+    }
+}
+
+function getImageData() {
+    if (!canvasPreview.value) {
+        throw new Error('Webcam Canvas not initialized');
+    }
+    const contextCanvasPreview = canvasPreview.value.getContext('2d')!;
+    return contextCanvasPreview.getImageData(0, 0, canvasPreview.value.width, canvasPreview.value.height);
 }
 
 // Internal
@@ -105,12 +117,13 @@ async function processVideoCapture() {
     const matSrc = new cv.Mat(dataOpenCV.value.size.preview.height, dataOpenCV.value.size.preview.width, cv.CV_8UC4);
     dataOpenCV.value.videoCapture?.read(matSrc);
 
-    cv.imshow(canvasPreview.value!, matSrc);
+    if (canvasPreview.value) {
+        cv.imshow(canvasPreview.value, matSrc);
+        // schedule the next one.
+        let timeDelay = 1000 / FPS - (Date.now() - timeBegin);
+        setTimeout(processVideoCapture, timeDelay);
+    }
     matSrc.delete();
-
-    // schedule the next one.
-    let timeDelay = 1000 / FPS - (Date.now() - timeBegin);
-    setTimeout(processVideoCapture, timeDelay);
 }
 
 </script>

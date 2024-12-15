@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, useTemplateRef } from 'vue';
+import { onMounted, onUnmounted, useTemplateRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import * as fabric from 'fabric';
+import { useImageStore } from '../store';
+import { convertCvMatToImageData, convertImageDataToUrl } from '../lib/image-processing';
+import cv from "@techstark/opencv-js"
 
 const router = useRouter()
+const imageStore = useImageStore();
 
 const photoPreview = useTemplateRef<HTMLCanvasElement>('photo-preview')
 let fabricCanvas: fabric.Canvas;
+let canvasLayerImgPreview: fabric.FabricImage;
+let canvasLayerSelectionHandle: fabric.Polygon;
 
 onMounted(async () => {
     if (photoPreview.value) {
@@ -14,18 +20,51 @@ onMounted(async () => {
             width: window.innerWidth,
             height: window.innerHeight,
         });
-    }
 
-    const canvasLayerImgPreview = await fabric.FabricImage.fromURL('http://fabricjs.com/assets/pug_small.jpg');
+        await updateFabricImageFrom(imageStore.photoCaptured);
+        updateFabricSelectionHandle();
+    }
+})
+
+onUnmounted(() => {
+    fabricCanvas.dispose()
+})
+
+watch(imageStore, (imageStore) => {
+    if (imageStore.photoCaptured) {
+        updateFabricImageFrom(imageStore.photoCaptured);
+    }
+})
+
+/// Event Handlers
+
+function onConfirmPress() {
+    const matSrc = cv.matFromImageData(imageStore.photoCaptured!);
+    const matDst = matSrc.clone();
+    imageStore.photoCropped = convertCvMatToImageData(matDst);
+    router.push({ name: "scan-preview" })
+}
+
+function onRetakePress() {
+    router.push({ name: "capture-photo-scan" })
+}
+
+// Internal
+async function updateFabricImageFrom(imageData: ImageData | undefined) {
+    const dummy1x1Gif = "data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=";
+    canvasLayerImgPreview = await fabric.FabricImage.fromURL(imageData ? convertImageDataToUrl(imageData) : dummy1x1Gif);
     canvasLayerImgPreview.set({
         left: 0,
         top: 0,
         width: window.innerWidth,
         height: window.innerHeight,
         selectable: false,
-    })
+    });
+    fabricCanvas.add(canvasLayerImgPreview);
+}
 
-    const canvasLayerSelectionHandle = new fabric.Polygon([
+function updateFabricSelectionHandle() {
+    canvasLayerSelectionHandle = new fabric.Polygon([
         { x: 200, y: 10 },
         { x: 250, y: 50 },
         { x: 250, y: 180 },
@@ -41,29 +80,15 @@ onMounted(async () => {
         selectable: true,
         hasBorders: false, // Remove bounding box
     });
-
     canvasLayerSelectionHandle.controls = fabric.controlsUtils.createPolyControls(4)
 
-    fabricCanvas.add(canvasLayerSelectionHandle, canvasLayerImgPreview)
+    fabricCanvas.remove(canvasLayerSelectionHandle)
+    fabricCanvas.add(canvasLayerSelectionHandle)
+
     fabricCanvas.setActiveObject(canvasLayerSelectionHandle); // Make it selected by default
     fabricCanvas.on('mouse:down', function () {
         fabricCanvas.setActiveObject(canvasLayerSelectionHandle); // Make it selected by default
     });
-}
-)
-
-onUnmounted(() => {
-    fabricCanvas.dispose()
-})
-
-/// Event Handlers
-
-function onConfirmPress() {
-    router.push({ name: "scan-preview" })
-}
-
-function onRetakePress() {
-    router.push({ name: "capture-photo-scan" })
 }
 </script>
 

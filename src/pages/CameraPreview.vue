@@ -1,15 +1,22 @@
 <script setup lang="ts">
+import { onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
+import { useRouter } from "vue-router";
 import WebCam from '../components/WebCam.vue';
-import { ref, onMounted, useTemplateRef } from 'vue'
-import { useRouter } from "vue-router"
+import { useImageStore } from '../store';
 
 const router = useRouter()
+const imageStore = useImageStore()
+
 const availableCameraCount = ref(0)
 
-const webcam = useTemplateRef("webcam");
+const webcamPreview = useTemplateRef("webcamPreview");
 
 onMounted(() => {
-    webcam.value!.startCameraPreview()
+    webcamPreview.value!.startCameraPreview()
+})
+
+onBeforeUnmount(() => {
+    webcamPreview.value!.stopCameraPreview()
 })
 
 /// Event Handlers
@@ -19,6 +26,7 @@ function onCameraReady(_: string, deviceIds: string[]) {
 }
 
 function onCameraCapture() {
+    imageStore.photoCaptured = webcamPreview.value?.getImageData()
     router.push({ name: "edit-photo-crop" })
 }
 
@@ -29,7 +37,7 @@ function onCameraFlip() {
 
 <template>
     <div class="flex camera-container w-screen h-screen">
-        <WebCam ref="webcam" class="relative h-full w-full" @camera-ready="onCameraReady" />
+        <WebCam ref="webcamPreview" class="relative h-full w-full" @camera-ready="onCameraReady" />
         <div class="fixed preview-container" style="background: rgba(0,0,0,0.4);">
             <div class="flex preview-overlay">
                 <div class="w-6 h-6"></div>

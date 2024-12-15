@@ -1,9 +1,29 @@
 <script setup lang="ts">
-import { useTemplateRef } from 'vue';
+import { onMounted, useTemplateRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useImageStore } from '../store';
 
 const router = useRouter()
+const imageStore = useImageStore();
+
 const scanPreview = useTemplateRef<HTMLCanvasElement>('scan-preview');
+
+onMounted(() => {
+    if (scanPreview.value) {
+        scanPreview.value.width = window.innerWidth;
+        scanPreview.value.height = window.innerHeight;
+    }
+
+    if (imageStore.photoCropped) {
+        scanPreview.value?.getContext('2d')?.putImageData(imageStore.photoCropped, 0, 0);
+    }
+})
+
+watch(imageStore, (imageStore) => {
+    if (imageStore.photoCropped) {
+        scanPreview.value?.getContext('2d')?.putImageData(imageStore.photoCropped, 0, 0);
+    }
+})
 
 /// Event Handlers
 
@@ -18,7 +38,7 @@ function onBackPress() {
 
 <template>
     <div class="flex camera-container w-screen h-screen">
-        <div class="relative h-full w-full">
+        <div class="relative h-full w-full p-36">
             <canvas class="w-full h-full" ref="scan-preview"></canvas>
         </div>
         <div class="fixed preview-container" style="background: rgba(0,0,0,0.4);">
