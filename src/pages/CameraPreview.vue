@@ -3,6 +3,8 @@ import { onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
 import { useRouter } from "vue-router";
 import WebCam from '../components/WebCam.vue';
 import { useImageStore } from '../store';
+import { findPaperContour, getCornerPoints } from '../lib/image-processing';
+import cv from "@techstark/opencv-js"
 
 const router = useRouter()
 const imageStore = useImageStore()
@@ -26,7 +28,18 @@ function onCameraReady(_: string, deviceIds: string[]) {
 }
 
 function onCameraCapture() {
-    imageStore.photoCaptured = webcamPreview.value?.getImageData()
+    const capturedImageData = webcamPreview.value?.getImageData();
+    if (!capturedImageData) return
+
+    const matCapturedImage = cv.matFromImageData(capturedImageData);
+    imageStore.photoCaptured = capturedImageData
+
+    const paperContour = findPaperContour(matCapturedImage);
+    if (paperContour) {
+        const cornerPoints = getCornerPoints(paperContour)
+        imageStore.photoPerspectiveCropPoints = cornerPoints
+    }
+
     router.push({ name: "edit-photo-crop" })
 }
 
@@ -37,8 +50,8 @@ function onCameraFlip() {
 
 <template>
     <div class="flex camera-container w-screen h-screen">
-        <WebCam ref="webcamPreview" class="relative h-full w-full" @camera-ready="onCameraReady" />
-        <div class="fixed preview-container" style="background: rgba(0,0,0,0.4);">
+        <WebCam ref="webcamPreview" class="absolute left-0 top-0 h-full w-full" @camera-ready="onCameraReady" />
+        <div class="fixed preview-container z-20" style="background: rgba(0,0,0,0.4);">
             <div class="flex preview-overlay">
                 <div class="w-6 h-6"></div>
                 <div class="justify-self-center">

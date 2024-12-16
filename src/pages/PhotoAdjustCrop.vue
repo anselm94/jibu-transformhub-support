@@ -1,103 +1,109 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, useTemplateRef, watch } from 'vue';
+import cv from "@techstark/opencv-js";
+import { computed, useTemplateRef } from 'vue';
 import { useRouter } from 'vue-router';
-import * as fabric from 'fabric';
+import { convertCvMatToImageData, convertImageDataToCanvas, extractPaperByPerspectiveTransform } from '../lib/image-processing';
 import { useImageStore } from '../store';
-import { convertCvMatToImageData, convertImageDataToUrl } from '../lib/image-processing';
-import cv from "@techstark/opencv-js"
+import Konva from "konva";
+
+type VueKonvaProxy<Group> = { getNode(): Group };
 
 const router = useRouter()
 const imageStore = useImageStore();
 
-const photoPreview = useTemplateRef<HTMLCanvasElement>('photo-preview')
-let fabricCanvas: fabric.Canvas;
-let canvasLayerImgPreview: fabric.FabricImage;
-let canvasLayerSelectionHandle: fabric.Polygon;
+const contourPolygon = useTemplateRef<VueKonvaProxy<Konva.Line>>('contour-polygon');
+const contourImage = useTemplateRef<VueKonvaProxy<Konva.Image>>('photo-image');
 
-onMounted(async () => {
-    if (photoPreview.value) {
-        fabricCanvas = new fabric.Canvas(photoPreview.value, {
-            width: window.innerWidth,
-            height: window.innerHeight,
-        });
+const contourP0 = useTemplateRef<VueKonvaProxy<Konva.Circle>>('p0');
+const contourP1 = useTemplateRef<VueKonvaProxy<Konva.Circle>>('p1');
+const contourP2 = useTemplateRef<VueKonvaProxy<Konva.Circle>>('p2');
+const contourP3 = useTemplateRef<VueKonvaProxy<Konva.Circle>>('p3');
 
-        await updateFabricImageFrom(imageStore.photoCaptured);
-        updateFabricSelectionHandle();
-    }
-})
-
-onUnmounted(() => {
-    fabricCanvas.dispose()
-})
-
-watch(imageStore, (imageStore) => {
-    if (imageStore.photoCaptured) {
-        updateFabricImageFrom(imageStore.photoCaptured);
-    }
-})
+const imageDataUrl = computed(() => imageStore.photoCaptured ? convertImageDataToCanvas(imageStore.photoCaptured) : undefined)
+const windowWidth = window.innerWidth
+const windowHeight = window.innerHeight
+const polygonCornerPoints = computed(() => [
+    imageStore.photoPerspectiveCropPoints.topLeftCorner.x,
+    imageStore.photoPerspectiveCropPoints.topLeftCorner.y,
+    imageStore.photoPerspectiveCropPoints.topRightCorner.x,
+    imageStore.photoPerspectiveCropPoints.topRightCorner.y,
+    imageStore.photoPerspectiveCropPoints.bottomRightCorner.x,
+    imageStore.photoPerspectiveCropPoints.bottomRightCorner.y,
+    imageStore.photoPerspectiveCropPoints.bottomLeftCorner.x,
+    imageStore.photoPerspectiveCropPoints.bottomLeftCorner.y,
+])
 
 /// Event Handlers
 
+function onP0DragMove() {
+    imageStore.photoPerspectiveCropPoints.topLeftCorner = contourP0.value!.getNode().getPosition()
+}
+function onP1DragMove() {
+    imageStore.photoPerspectiveCropPoints.topRightCorner = contourP1.value!.getNode().getPosition()
+}
+function onP2DragMove() {
+    imageStore.photoPerspectiveCropPoints.bottomRightCorner = contourP2.value!.getNode().getPosition()
+}
+function onP3DragMove() {
+    imageStore.photoPerspectiveCropPoints.bottomLeftCorner = contourP3.value!.getNode().getPosition()
+}
+
+function onOtherDragMove() {
+    contourPolygon.value!.getNode().x(0).y(0);
+    contourImage.value!.getNode().x(0).y(0);
+}
+
 function onConfirmPress() {
     const matSrc = cv.matFromImageData(imageStore.photoCaptured!);
-    const matDst = matSrc.clone();
+    const matPerspectiveTransformed = extractPaperByPerspectiveTransform(matSrc, imageStore.photoPerspectiveCropPoints);
+    const matDst = new cv.Mat();
+    cv.cvtColor(matPerspectiveTransformed, matDst, cv.COLOR_RGBA2GRAY);
+    cv.adaptiveThreshold(matDst, matDst, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 11, 2);
+    // cv.threshold(matPerspectiveTransformed, matDst, 130, 255, cv.THRESH_BINARY);
     imageStore.photoCropped = convertCvMatToImageData(matDst);
+
     router.push({ name: "scan-preview" })
+
+    matSrc.delete();
+    matDst.delete();
 }
 
 function onRetakePress() {
     router.push({ name: "capture-photo-scan" })
 }
 
-// Internal
-async function updateFabricImageFrom(imageData: ImageData | undefined) {
-    const dummy1x1Gif = "data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=";
-    canvasLayerImgPreview = await fabric.FabricImage.fromURL(imageData ? convertImageDataToUrl(imageData) : dummy1x1Gif);
-    canvasLayerImgPreview.set({
-        left: 0,
-        top: 0,
-        width: window.innerWidth,
-        height: window.innerHeight,
-        selectable: false,
-    });
-    fabricCanvas.add(canvasLayerImgPreview);
-}
-
-function updateFabricSelectionHandle() {
-    canvasLayerSelectionHandle = new fabric.Polygon([
-        { x: 200, y: 10 },
-        { x: 250, y: 50 },
-        { x: 250, y: 180 },
-        { x: 150, y: 180 },
-    ], {
-        left: 400,
-        top: 400,
-        width: 100,
-        height: 10,
-        fill: 'rgba(0,0,0,0)',
-        stroke: 'rgba(1,0,0,1)',
-        strokeWidth: 5,
-        selectable: true,
-        hasBorders: false, // Remove bounding box
-    });
-    canvasLayerSelectionHandle.controls = fabric.controlsUtils.createPolyControls(4)
-
-    fabricCanvas.remove(canvasLayerSelectionHandle)
-    fabricCanvas.add(canvasLayerSelectionHandle)
-
-    fabricCanvas.setActiveObject(canvasLayerSelectionHandle); // Make it selected by default
-    fabricCanvas.on('mouse:down', function () {
-        fabricCanvas.setActiveObject(canvasLayerSelectionHandle); // Make it selected by default
-    });
-}
 </script>
 
 <template>
     <div class="flex camera-container w-screen h-screen">
         <div class="relative h-full w-full">
-            <canvas class="w-full h-full" ref="photo-preview"></canvas>
+            <v-stage ref="stage" :width="windowWidth" :height="windowHeight">
+                <v-layer draggable="false">
+                    <v-image ref="photo-image" @dragmove="onOtherDragMove" :image="imageDataUrl" draggable="false" />
+                </v-layer>
+                <v-layer draggable="false">
+                    <v-line ref="contour-polygon" @dragmove="onOtherDragMove" :points="polygonCornerPoints"
+                        stroke="#ff0000" strokeWidth=5 draggable="false" closed="true" />
+                    <v-circle ref="p0" @dragmove="onP0DragMove"
+                        :x="imageStore.photoPerspectiveCropPoints.topLeftCorner.x"
+                        :y="imageStore.photoPerspectiveCropPoints.topLeftCorner.y" radius=10 fill="#00ff00"
+                        draggable="true" />
+                    <v-circle ref="p1" @dragmove="onP1DragMove"
+                        :x="imageStore.photoPerspectiveCropPoints.topRightCorner.x"
+                        :y="imageStore.photoPerspectiveCropPoints.topRightCorner.y" radius=10 fill="#00ff00"
+                        draggable="true" />
+                    <v-circle ref="p2" @dragmove="onP2DragMove"
+                        :x="imageStore.photoPerspectiveCropPoints.bottomRightCorner.x"
+                        :y="imageStore.photoPerspectiveCropPoints.bottomRightCorner.y" radius=10 fill="#00ff00"
+                        draggable="true" />
+                    <v-circle ref="p3" @dragmove="onP3DragMove"
+                        :x="imageStore.photoPerspectiveCropPoints.bottomLeftCorner.x"
+                        :y="imageStore.photoPerspectiveCropPoints.bottomLeftCorner.y" radius=10 fill="#00ff00"
+                        draggable="true" />
+                </v-layer>
+            </v-stage>
         </div>
-        <div class="fixed preview-container" style="background: rgba(0,0,0,0.4);">
+        <div class="fixed preview-container z-10" style="background: rgba(0,0,0,0.4);">
             <div class="flex preview-overlay">
                 <div class="justify-self-center">
                     <button class="text-gray-700 rounded-full p-4 bg-gray-50 hover:bg-gray-200 active:bg-gray-400"

@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import cv from "@techstark/opencv-js";
 import { defineEmits, defineExpose, onMounted, ref, useTemplateRef } from 'vue';
+import { highlightPaper } from "../lib/image-processing";
 
 defineExpose({
     startCameraPreview,
     stopCameraPreview,
     getImageData
+})
+
+defineProps({
+    class: String
 })
 
 const emit = defineEmits<{
@@ -17,6 +22,7 @@ const FPS = 30;
 
 const videoEl = useTemplateRef<HTMLVideoElement>('video-el')
 const canvasPreview = useTemplateRef<HTMLCanvasElement>('video-preview')
+const canvasPaperContourPreview = useTemplateRef<HTMLCanvasElement>('video-paper-contour')
 
 const dataCamera = ref({
     availableCameras: [] as MediaDeviceInfo[],
@@ -39,11 +45,11 @@ onMounted(async () => {
     const previewHeight = window.innerHeight;
     dataOpenCV.value.size.preview.width = previewWidth;
     dataOpenCV.value.size.preview.height = previewHeight;
-    if (videoEl.value && canvasPreview.value) {
+    if (videoEl.value && canvasPreview.value && canvasPaperContourPreview.value) {
         videoEl.value.width = previewWidth;
         videoEl.value.height = previewHeight;
-        canvasPreview.value.width = previewWidth;
-        canvasPreview.value.height = previewHeight;
+        canvasPreview.value.width = canvasPaperContourPreview.value.width = previewWidth;
+        canvasPreview.value.height = canvasPaperContourPreview.value.height = previewHeight;
 
         dataOpenCV.value.videoCapture = new cv.VideoCapture(videoEl.value)
     }
@@ -117,8 +123,15 @@ async function processVideoCapture() {
     const matSrc = new cv.Mat(dataOpenCV.value.size.preview.height, dataOpenCV.value.size.preview.width, cv.CV_8UC4);
     dataOpenCV.value.videoCapture?.read(matSrc);
 
-    if (canvasPreview.value) {
+    if (canvasPreview.value && canvasPaperContourPreview.value) {
         cv.imshow(canvasPreview.value, matSrc);
+        // highlight the detected paper
+        const ctxContourPreview = canvasPaperContourPreview.value.getContext('2d')!;
+        ctxContourPreview.clearRect(0, 0, canvasPaperContourPreview.value.width, canvasPaperContourPreview.value.height);
+        highlightPaper(matSrc, ctxContourPreview, {
+            color: 'rgba(0, 255, 0, 0.5)',
+            thickness: 10,
+        });
         // schedule the next one.
         let timeDelay = 1000 / FPS - (Date.now() - timeBegin);
         setTimeout(processVideoCapture, timeDelay);
@@ -130,7 +143,8 @@ async function processVideoCapture() {
 
 <template>
     <video ref="video-el" class="hidden" autoplay />
-    <canvas ref="video-preview" v-bind="{ ...$attrs }" />
+    <canvas ref="video-paper-contour" style="z-index: 1;" :class="class" v-bind="{ ...$attrs }" />
+    <canvas ref="video-preview" style="z-index: 0;" :class="class" v-bind="{ ...$attrs }" />
 </template>
 
 <style></style>

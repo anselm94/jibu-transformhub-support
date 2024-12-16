@@ -1,6 +1,7 @@
 import cv from "@techstark/opencv-js";
 import { createPinia } from "pinia";
 import { createApp } from "vue";
+import VueKonva from "vue-konva";
 import { createRouter, createWebHashHistory } from "vue-router";
 import App from "./App.vue";
 import "./index.css";
@@ -31,5 +32,5 @@ const stateManagement = createPinia();
 
 cv.onRuntimeInitialized = () => {
   // Initialize
-  createApp(App).use(router).use(stateManagement).mount("#app");
+  createApp(App).use(router).use(stateManagement).use(VueKonva).mount("#app");
 };

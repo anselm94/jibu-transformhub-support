@@ -15,13 +15,8 @@ onMounted(() => {
     }
 
     if (imageStore.photoCropped) {
-        scanPreview.value?.getContext('2d')?.putImageData(imageStore.photoCropped, 0, 0);
-    }
-})
-
-watch(imageStore, (imageStore) => {
-    if (imageStore.photoCropped) {
-        scanPreview.value?.getContext('2d')?.putImageData(imageStore.photoCropped, 0, 0);
+        const ctxScanPreview = scanPreview.value?.getContext('2d')!;
+        ctxScanPreview.putImageData(imageStore.photoCropped, 0, 0);
     }
 })
 
@@ -38,7 +33,7 @@ function onBackPress() {
 
 <template>
     <div class="flex camera-container w-screen h-screen">
-        <div class="relative h-full w-full p-36">
+        <div class="relative h-full w-full p-8">
             <canvas class="w-full h-full" ref="scan-preview"></canvas>
         </div>
         <div class="fixed preview-container" style="background: rgba(0,0,0,0.4);">
