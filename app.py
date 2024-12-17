@@ -3,13 +3,17 @@ import boto3
 import os
 import uuid
 from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 app = Flask(__name__)
 
 # Configure AWS Textract
-AWS_REGION = "us-east-1"
-AWS_ACCESS_KEY = "AKIA2EXSPDZ2AOQNTNCI"
-AWS_SECRET_KEY = "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"
+AWS_REGION = os.environ['AWS_REGION']
+AWS_ACCESS_KEY = os.environ['AWS_ACCESS_KEY']
+AWS_SECRET_KEY = os.environ['AWS_SECRET_KEY']
 
 textract_client = boto3.client(
     'textract',
