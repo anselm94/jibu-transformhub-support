@@ -8,6 +8,7 @@ import "./index.css";
 import CameraPreviewPage from "./pages/CameraPreview.vue";
 import PhotoAdjustCropPage from "./pages/PhotoAdjustCrop.vue";
 import ScanPreviewPage from "./pages/ScanPreview.vue";
+import ExtractedDataPreviewPage from "./pages/ExtractedDataPreview.vue";
 
 // Router
 const router = createRouter({
@@ -24,6 +25,7 @@ const router = createRouter({
       component: PhotoAdjustCropPage,
     },
     { path: "/scan-preview", name: "scan-preview", component: ScanPreviewPage },
+    { path: "/extracted-data-preview", name: "extracted-data-preview", component: ExtractedDataPreviewPage },
   ],
 });
 

@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { onMounted, useTemplateRef } from 'vue';
+import { onMounted, ref, useTemplateRef } from 'vue';
 import { useRouter } from 'vue-router';
 import { useImageStore } from '../store';
+import { Dialog } from "frappe-ui"
 
 const router = useRouter()
 const imageStore = useImageStore();
 
 const scanPreview = useTemplateRef<HTMLCanvasElement>('scan-preview');
+
+const isProcessingInBackend = ref(false);
 
 onMounted(() => {
     if (scanPreview.value) {
@@ -26,8 +29,6 @@ onMounted(() => {
         const ratio = Math.min(widthRatio, heightRatio)
 
         const ctxScanPreview = scanPreview.value.getContext('2d')!;
-        // scanPreview.value.width = imageStore.photoCropped.width * ratio
-        // scanPreview.value.height = imageStore.photoCropped.height * ratio
         ctxScanPreview.scale(ratio, ratio)
         ctxScanPreview.drawImage(tempCanvasEl, 0, 0);
     }
@@ -36,7 +37,23 @@ onMounted(() => {
 /// Event Handlers
 
 function onConfirm() {
-
+    isProcessingInBackend.value = true;
+    scanPreview.value?.toBlob(async (blob) => {
+        if (blob) {
+            const formData = new FormData();
+            formData.append('photo', blob, "photo.png");
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+            isProcessingInBackend.value = false;
+            if (res.ok) {
+                const data = await res.json();
+                imageStore.extractedTable = data;
+                router.push({ name: "extracted-data-preview" })
+            }
+        }
+    }, "image/png")
 }
 
 function onBackPress() {
@@ -45,6 +62,8 @@ function onBackPress() {
 </script>
 
 <template>
+    <Dialog v-model="isProcessingInBackend" :options="{ title: 'Processing...' }" @close="isProcessingInBackend = true">
+    </Dialog>
     <div class="flex camera-container w-screen h-screen">
         <div class="relative h-full w-full p-8">
             <canvas class="w-full h-full" ref="scan-preview"></canvas>

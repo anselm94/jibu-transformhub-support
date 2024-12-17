@@ -23,6 +23,15 @@ export const useImageStore = defineStore("imagedata", () => {
     bottomLeftCorner: { x: 0, y: 0 },
     bottomRightCorner: { x: 0, y: 0 },
   });
+  const extractedTable = ref<{
+    tables: {
+      tableId: number,
+      rows: {
+        rowId: number,
+        cells:[]
+      }[]
+    }[]
+  }>()
 
   // Actions
 
@@ -31,5 +40,6 @@ export const useImageStore = defineStore("imagedata", () => {
     photoCropped,
     photoPerspectiveCrop,
     photoPerspectiveCropPoints,
+    extractedTable
   };
 });
