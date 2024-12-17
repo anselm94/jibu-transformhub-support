@@ -47,6 +47,28 @@ export function convertImageDataToCanvas(
   return canvas;
 }
 
+export async function convertDataUrlToImageData(
+  dataUrl: string
+): Promise<ImageData> {
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Canvas 2D context is not supported");
+  }
+
+  const promise = new Promise<ImageData>((resolve) => {
+    const image = new Image();
+    image.src = dataUrl;
+    image.onload = () => {
+      canvas.width = image.width;
+      canvas.height = image.height;
+      context.drawImage(image, 0, 0);
+      resolve(context.getImageData(0, 0, image.width, image.height));
+    };
+  });
+  return promise;
+}
+
 /**
  * Calculates distance between two points. Each point must have `x` and `y` property
  * @param {*} p1 point 1

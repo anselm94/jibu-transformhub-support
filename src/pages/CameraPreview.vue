@@ -3,7 +3,7 @@ import { onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
 import { useRouter } from "vue-router";
 import WebCam from '../components/WebCam.vue';
 import { useImageStore } from '../store';
-import { findPaperContour, getCornerPoints } from '../lib/image-processing';
+import { convertDataUrlToImageData, findPaperContour, getCornerPoints } from '../lib/image-processing';
 import cv from "@techstark/opencv-js"
 
 const router = useRouter()
@@ -27,18 +27,36 @@ function onCameraReady(_: string, deviceIds: string[]) {
     availableCameraCount.value = deviceIds.length
 }
 
+function onPhotoUpload(evt: Event) {
+    const file = (evt.target as HTMLInputElement).files?.[0];
+    if (file) {
+        const fileReader = new FileReader();
+        fileReader.onload = async () => {
+            imageStore.photoCaptured = await convertDataUrlToImageData(fileReader.result as string)
+
+            detectPaperContourAndNavigate();
+        }
+        fileReader.readAsDataURL(file);
+    }
+}
+
 function onCameraCapture() {
     const capturedImageData = webcamPreview.value?.getImageData();
     if (!capturedImageData) return
 
-    const matCapturedImage = cv.matFromImageData(capturedImageData);
     imageStore.photoCaptured = capturedImageData
 
+    detectPaperContourAndNavigate();
+}
+
+function detectPaperContourAndNavigate() {
+    const matCapturedImage = cv.matFromImageData(imageStore.photoCaptured!);
     const paperContour = findPaperContour(matCapturedImage);
     if (paperContour) {
         const cornerPoints = getCornerPoints(paperContour)
         imageStore.photoPerspectiveCropPoints = cornerPoints
     }
+    matCapturedImage.delete()
 
     router.push({ name: "edit-photo-crop" })
 }
@@ -53,7 +71,18 @@ function onCameraFlip() {
         <WebCam ref="webcamPreview" class="absolute left-0 top-0 h-full w-full" @camera-ready="onCameraReady" />
         <div class="fixed preview-container z-20" style="background: rgba(0,0,0,0.4);">
             <div class="flex preview-overlay">
-                <div class="w-6 h-6"></div>
+                <div class="justify-self-center">
+                    <label for="upload-photo">
+                        <div class="text-white rounded-full p-4 bg-black-overlay-200 active:bg-black-overlay-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                            </svg>
+                        </div>
+                    </label>
+                    <input id="upload-photo" type="file" name="photo" accept="image/*" style="display: none"
+                        @change="onPhotoUpload" />
+                </div>
                 <div class="justify-self-center">
                     <button class="text-gray-700 rounded-full p-4 bg-gray-50 hover:bg-gray-200 active:bg-gray-400"
                         @click="onCameraCapture">

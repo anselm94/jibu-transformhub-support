@@ -57,9 +57,10 @@ function onConfirmPress() {
     const matSrc = cv.matFromImageData(imageStore.photoCaptured!);
     const matPerspectiveTransformed = extractPaperByPerspectiveTransform(matSrc, imageStore.photoPerspectiveCropPoints);
     const matDst = new cv.Mat();
-    cv.cvtColor(matPerspectiveTransformed, matDst, cv.COLOR_RGBA2GRAY);
-    cv.adaptiveThreshold(matDst, matDst, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 11, 2);
-    // cv.threshold(matPerspectiveTransformed, matDst, 130, 255, cv.THRESH_BINARY);
+    cv.cvtColor(matPerspectiveTransformed, matDst, cv.COLOR_BGR2GRAY);
+
+    cv.threshold(matDst, matDst, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
+
     imageStore.photoCropped = convertCvMatToImageData(matDst);
 
     router.push({ name: "scan-preview" })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, useTemplateRef, watch } from 'vue';
+import { onMounted, useTemplateRef } from 'vue';
 import { useRouter } from 'vue-router';
 import { useImageStore } from '../store';
 
@@ -14,9 +14,22 @@ onMounted(() => {
         scanPreview.value.height = window.innerHeight;
     }
 
-    if (imageStore.photoCropped) {
-        const ctxScanPreview = scanPreview.value?.getContext('2d')!;
-        ctxScanPreview.putImageData(imageStore.photoCropped, 0, 0);
+    if (imageStore.photoCropped && scanPreview.value) {
+        const tempCanvasEl = document.createElement('canvas');
+        tempCanvasEl.width = imageStore.photoCropped.width;
+        tempCanvasEl.height = imageStore.photoCropped.height;
+        const tempCtx = tempCanvasEl.getContext('2d')!;
+        tempCtx.putImageData(imageStore.photoCropped, 0, 0);
+
+        const widthRatio = scanPreview.value.width / imageStore.photoCropped.width
+        const heightRatio = scanPreview.value.height / imageStore.photoCropped.height
+        const ratio = Math.min(widthRatio, heightRatio)
+
+        const ctxScanPreview = scanPreview.value.getContext('2d')!;
+        // scanPreview.value.width = imageStore.photoCropped.width * ratio
+        // scanPreview.value.height = imageStore.photoCropped.height * ratio
+        ctxScanPreview.scale(ratio, ratio)
+        ctxScanPreview.drawImage(tempCanvasEl, 0, 0);
     }
 })
 
