@@ -61,8 +61,17 @@ function detectPaperContourAndNavigate() {
     router.push({ name: "edit-photo-crop" })
 }
 
-function onCameraFlip() {
-
+async function onCameraFlip() {
+    if (webcamPreview.value) {
+        const availableCameras = await webcamPreview.value.getAvailableCameras();
+        if (availableCameras.length > 1) {
+            const deviceId = availableCameras.find((camera) => camera.deviceId !== webcamPreview.value?.getCurrentCameraDeviceId())?.deviceId
+            if (deviceId) {
+                webcamPreview.value.stopCameraPreview();
+                webcamPreview.value.startCameraPreview(deviceId);
+            }
+        }
+    }
 }
 </script>
 

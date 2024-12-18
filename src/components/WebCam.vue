@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import cv from "@techstark/opencv-js";
-import { defineEmits, defineExpose, onMounted, ref, useTemplateRef } from 'vue';
+import { defineEmits, defineProps, defineExpose, onMounted, ref, useTemplateRef } from 'vue';
 import { highlightPaper } from "../lib/image-processing";
 
 defineExpose({
     startCameraPreview,
     stopCameraPreview,
-    getImageData
+    getImageData,
+    getAvailableCameras,
+    getCurrentCameraDeviceId
 })
 
 defineProps({
@@ -57,8 +59,8 @@ onMounted(async () => {
 
 /// Methods
 
-async function startCameraPreview() {
-    const cameraVideoStream = await startCameraPreviewFor();
+async function startCameraPreview(deviceId?: string) {
+    const cameraVideoStream = await startCameraPreviewFor(deviceId);
 
     const availableCameras = await getAvailableCameras();
 
@@ -98,7 +100,9 @@ async function startCameraPreviewFor(deviceId?: string) {
             deviceId: {
                 exact: deviceId
             }
-        } : true
+        } : {
+            width: 9999
+        },
     }
     const videoStream = await navigator.mediaDevices.getUserMedia(cameraDeviceConstraint);
     if (videoEl.value) {
@@ -117,6 +121,10 @@ async function getAvailableCameras(): Promise<MediaDeviceInfo[]> {
         .filter(deviceInfo => deviceInfo.kind === 'videoinput')
 }
 
+function getCurrentCameraDeviceId() {
+    return dataCamera.value.cameraDeviceId;
+}
+
 async function processVideoCapture() {
     const timeBegin = Date.now();
 
@@ -124,6 +132,7 @@ async function processVideoCapture() {
     dataOpenCV.value.videoCapture?.read(matSrc);
 
     if (canvasPreview.value && canvasPaperContourPreview.value) {
+        cv.flip(matSrc, matSrc, 1);
         cv.imshow(canvasPreview.value, matSrc);
         // highlight the detected paper
         const ctxContourPreview = canvasPaperContourPreview.value.getContext('2d')!;
