@@ -131,6 +131,10 @@ export async function convertDataUrlToImageData(
 }
 
 /**
+ * Below code is adapted from https://github.com/puffinsoft/jscanify/blob/master/src/jscanify.js
+ */
+
+/**
  * Calculates distance between two points. Each point must have `x` and `y` property.
  * @param {Point} p1 - Point 1.
  * @param {Point} p2 - Point 2.

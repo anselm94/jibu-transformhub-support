@@ -29,6 +29,11 @@ UPLOAD_FOLDER = "uploads"
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+#
+# Below code is adapted from https://docs.aws.amazon.com/textract/latest/dg/examples-export-table-csv.html
+#
+
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     # Check if the file is part of the request
