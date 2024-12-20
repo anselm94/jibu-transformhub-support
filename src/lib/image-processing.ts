@@ -1,6 +1,11 @@
 import cv from "@techstark/opencv-js";
 import type { CornerPoints, Point } from "../store";
 
+/**
+ * Converts an OpenCV Mat object to ImageData.
+ * @param {cv.Mat} mat - The OpenCV Mat object to convert.
+ * @returns {ImageData} The converted ImageData object.
+ */
 export function convertCvMatToImageData(mat: cv.Mat): ImageData {
   const matImage = new cv.Mat();
   const depth = mat.type() % 8;
@@ -30,6 +35,13 @@ export function convertCvMatToImageData(mat: cv.Mat): ImageData {
   return canvasImageData;
 }
 
+/**
+ * Converts ImageData to a canvas element.
+ * @param {ImageData} imageData - The ImageData to convert.
+ * @param {number} canvasWidth - The width of the canvas.
+ * @param {number} canvasHeight - The height of the canvas.
+ * @returns {Promise<HTMLCanvasElement>} A promise that resolves to the canvas element.
+ */
 export function convertImageDataToCanvas(
   imageData: ImageData,
   canvasWidth: number,
@@ -60,6 +72,13 @@ export function convertImageDataToCanvas(
   });
 }
 
+/**
+ * Converts a data URL to ImageData.
+ * @param {string} dataUrl - The data URL to convert.
+ * @param {number} canvasWidth - The width of the canvas.
+ * @param {number} canvasHeight - The height of the canvas.
+ * @returns {Promise<ImageData>} A promise that resolves to the ImageData object.
+ */
 export async function convertDataUrlToImageData(
   dataUrl: string,
   canvasWidth: number,
@@ -112,19 +131,19 @@ export async function convertDataUrlToImageData(
 }
 
 /**
- * Calculates distance between two points. Each point must have `x` and `y` property
- * @param {*} p1 point 1
- * @param {*} p2 point 2
- * @returns distance between two points
+ * Calculates distance between two points. Each point must have `x` and `y` property.
+ * @param {Point} p1 - Point 1.
+ * @param {Point} p2 - Point 2.
+ * @returns {number} Distance between two points.
  */
 function distance(p1: Point, p2: Point) {
   return Math.hypot(p1.x - p2.x, p1.y - p2.y);
 }
 
 /**
- * Finds the contour of the paper within the image
- * @param {*} img image to process (cv.Mat)
- * @returns the biggest contour inside the image
+ * Finds the contour of the paper within the image.
+ * @param {cv.Mat} img - Image to process (cv.Mat).
+ * @returns {cv.Mat | undefined} The biggest contour inside the image.
  */
 export function findPaperContour(img: cv.Mat) {
   const imgGray = new cv.Mat();
@@ -169,9 +188,12 @@ export function findPaperContour(img: cv.Mat) {
 
 /**
  * Highlights the paper detected inside the image.
- * @param {*} image image to process
- * @param {*} options options for highlighting. Accepts `color` and `thickness` parameter
- * @returns `HTMLCanvasElement` with original image and paper highlighted
+ * @param {cv.Mat} imgMat - Image to process.
+ * @param {CanvasRenderingContext2D} ctxCanvas - Canvas rendering context.
+ * @param {Object} [options] - Options for highlighting.
+ * @param {string} [options.color] - Color of the highlight.
+ * @param {number} [options.thickness] - Thickness of the highlight.
+ * @returns {void}
  */
 export function highlightPaper(
   imgMat: cv.Mat,
@@ -212,11 +234,9 @@ export function highlightPaper(
 
 /**
  * Extracts and undistorts the image detected within the frame.
- * @param {*} image image to process
- * @param {*} resultWidth desired result paper width
- * @param {*} resultHeight desired result paper height
- * @param {*} cornerPoints optional custom corner points, in case automatic corner points are incorrect
- * @returns `HTMLCanvasElement` containing undistorted image
+ * @param {cv.Mat} matImg - Image to process.
+ * @param {CornerPoints} cornerPoints - Corner points of the paper.
+ * @returns {cv.Mat} The undistorted image.
  */
 export function extractPaperByPerspectiveTransform(
   matImg: cv.Mat,
@@ -237,9 +257,6 @@ export function extractPaperByPerspectiveTransform(
     bottomLeftCorner.y,
   ]);
 
-  // compute the width of the new image, which will be the
-  // maximum distance between bottom-right and bottom-left
-  // x-coordiates or the top-right and top-left x-coordinates
   const widthA = Math.sqrt(
     (bottomRightCorner.x - bottomLeftCorner.x) ** 2 +
       (bottomRightCorner.y - bottomLeftCorner.y) ** 2
@@ -249,9 +266,7 @@ export function extractPaperByPerspectiveTransform(
       (topRightCorner.y - topLeftCorner.y) ** 2
   );
   const maxWidth = Math.max(widthA, widthB);
-  // compute the height of the new image, which will be the
-  // maximum distance between the top-right and bottom-right
-  // y-coordinates or the top-left and bottom-left y-coordinates
+
   const heightA = Math.sqrt(
     (topRightCorner.x - bottomRightCorner.x) ** 2 +
       (topRightCorner.y - bottomRightCorner.y) ** 2
@@ -291,8 +306,8 @@ export function extractPaperByPerspectiveTransform(
 
 /**
  * Calculates the corner points of a contour.
- * @param {*} contour contour from {@link findPaperContour}
- * @returns object with properties `topLeftCorner`, `topRightCorner`, `bottomLeftCorner`, `bottomRightCorner`, each with `x` and `y` property
+ * @param {cv.Mat} contour - Contour from {@link findPaperContour}.
+ * @returns {CornerPoints} Object with properties `topLeftCorner`, `topRightCorner`, `bottomLeftCorner`, `bottomRightCorner`, each with `x` and `y` property.
  */
 export function getCornerPoints(contour: cv.Mat): CornerPoints {
   let rect = cv.minAreaRect(contour);
@@ -314,25 +329,21 @@ export function getCornerPoints(contour: cv.Mat): CornerPoints {
     const point = { x: contour.data32S[i], y: contour.data32S[i + 1] };
     const dist = distance(point, center);
     if (point.x < center.x && point.y < center.y) {
-      // top left
       if (dist > topLeftCornerDist) {
         topLeftCorner = point;
         topLeftCornerDist = dist;
       }
     } else if (point.x > center.x && point.y < center.y) {
-      // top right
       if (dist > topRightCornerDist) {
         topRightCorner = point;
         topRightCornerDist = dist;
       }
     } else if (point.x < center.x && point.y > center.y) {
-      // bottom left
       if (dist > bottomLeftCornerDist) {
         bottomLeftCorner = point;
         bottomLeftCornerDist = dist;
       }
     } else if (point.x > center.x && point.y > center.y) {
-      // bottom right
       if (dist > bottomRightCornerDist) {
         bottomRightCorner = point;
         bottomRightCornerDist = dist;

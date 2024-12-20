@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import os
 
+# Load environment variables from a .env file
 load_dotenv()
 
 app = Flask(__name__)
@@ -15,6 +16,7 @@ AWS_REGION = os.environ['AWS_REGION']
 AWS_ACCESS_KEY = os.environ['AWS_ACCESS_KEY']
 AWS_SECRET_KEY = os.environ['AWS_SECRET_KEY']
 
+# Initialize the Textract client
 textract_client = boto3.client(
     'textract',
     region_name=AWS_REGION,
@@ -24,7 +26,6 @@ textract_client = boto3.client(
 
 # Configure upload folder and allowed extensions
 UPLOAD_FOLDER = "uploads"
-
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -42,6 +43,7 @@ def upload_file():
 
     # Check if the file is allowed
     if file:
+        # Generate a secure filename with a UUID to avoid conflicts
         filename = secure_filename(uuid.uuid4().hex + "-" + file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
@@ -64,10 +66,12 @@ def upload_file():
                 if block['BlockType'] == 'TABLE':
                     table_blocks.append(block)
 
+            # If no tables are found, return an error
             if len(table_blocks) <= 0:
                 return jsonify({"error": "No tables found in the document"}), 400
             
             tables = []
+            # Process each table block
             for index, rows in enumerate(table_blocks):
                 rows = generate_table_rows(rows, blocks_map)
                 tables.append({
@@ -75,15 +79,19 @@ def upload_file():
                     "rows": rows
                 })
             
+            # Return the extracted tables as JSON
             return jsonify({"tables": tables}), 200
 
         except Exception as e:
+            # Handle any exceptions that occur
             return jsonify({"error": str(e)}), 500
 
     else:
+        # If the file type is not allowed, return an error
         return jsonify({"error": "File type not allowed"}), 400
 
 def generate_table_rows(table_result, blocks_map):
+    # Generate rows of table data from Textract result
     row_columns_map, _ = get_rows_columns_map(table_result, blocks_map)
     rows = []
     cells = []
@@ -99,6 +107,7 @@ def generate_table_rows(table_result, blocks_map):
     return rows
 
 def get_rows_columns_map(table_result, blocks_map):
+    # Map rows and columns from Textract result
     rows = {}
     scores = []
     for relationship in table_result['Relationships']:
@@ -120,6 +129,7 @@ def get_rows_columns_map(table_result, blocks_map):
     return rows, scores
 
 def get_text(result, blocks_map):
+    # Extract text from Textract result
     text = ''
     if 'Relationships' in result:
         for relationship in result['Relationships']:
@@ -137,4 +147,5 @@ def get_text(result, blocks_map):
     return text
 
 if __name__ == '__main__':
+    # Run the Flask app in debug mode
     app.run(debug=True)

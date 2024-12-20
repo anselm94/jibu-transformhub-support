@@ -11,6 +11,7 @@ type VueKonvaProxy<Group> = { getNode(): Group };
 const router = useRouter()
 const imageStore = useImageStore();
 
+// References to the draggable points and image on the canvas
 const contourPolygon = useTemplateRef<VueKonvaProxy<Konva.Line>>('contour-polygon');
 const contourImage = useTemplateRef<VueKonvaProxy<Konva.Image>>('photo-image');
 
@@ -19,10 +20,14 @@ const contourP1 = useTemplateRef<VueKonvaProxy<Konva.Circle>>('p1');
 const contourP2 = useTemplateRef<VueKonvaProxy<Konva.Circle>>('p2');
 const contourP3 = useTemplateRef<VueKonvaProxy<Konva.Circle>>('p3');
 
+// Get the window dimensions
 const windowWidth = window.innerWidth
 const windowHeight = window.innerHeight
+
+// Calculate the scale to fit the image within the window
 const imageToWindowScale = computed(() => imageStore.photoCaptured?.width ? windowWidth / imageStore.photoCaptured.width : 1)
 
+// Calculate the positions of the polygon corners
 const polygonCornerPoints = computed(() => [
     imageStore.photoPerspectiveCropPoints.topLeftCorner.x * imageToWindowScale.value,
     imageStore.photoPerspectiveCropPoints.topLeftCorner.y * imageToWindowScale.value,
@@ -35,36 +40,43 @@ const polygonCornerPoints = computed(() => [
 ])
 
 onMounted(async () => {
+    // When the component is mounted, draw the captured photo on the canvas
     if (imageStore.photoCaptured && contourImage.value) {
         const canvas = await convertImageDataToCanvas(imageStore.photoCaptured, windowWidth, windowHeight)
         contourImage.value.getNode().image(canvas)
     }
 })
 
-/// Event Handlers
+// Event Handlers
 
+// Update the position of the top-left corner
 function onP0DragMove() {
     imageStore.photoPerspectiveCropPoints.topLeftCorner.x = contourP0.value!.getNode().getPosition().x / imageToWindowScale.value
     imageStore.photoPerspectiveCropPoints.topLeftCorner.y = contourP0.value!.getNode().getPosition().y / imageToWindowScale.value
 }
+// Update the position of the top-right corner
 function onP1DragMove() {
     imageStore.photoPerspectiveCropPoints.topRightCorner.x = contourP1.value!.getNode().getPosition().x / imageToWindowScale.value
     imageStore.photoPerspectiveCropPoints.topRightCorner.y = contourP1.value!.getNode().getPosition().y / imageToWindowScale.value
 }
+// Update the position of the bottom-right corner
 function onP2DragMove() {
     imageStore.photoPerspectiveCropPoints.bottomRightCorner.x = contourP2.value!.getNode().getPosition().x / imageToWindowScale.value
     imageStore.photoPerspectiveCropPoints.bottomRightCorner.y = contourP2.value!.getNode().getPosition().y / imageToWindowScale.value
 }
+// Update the position of the bottom-left corner
 function onP3DragMove() {
     imageStore.photoPerspectiveCropPoints.bottomLeftCorner.x = contourP3.value!.getNode().getPosition().x / imageToWindowScale.value
     imageStore.photoPerspectiveCropPoints.bottomLeftCorner.y = contourP3.value!.getNode().getPosition().y / imageToWindowScale.value
 }
 
+// Keep the polygon and image in place while dragging
 function onOtherDragMove() {
     contourPolygon.value!.getNode().x(0).y(0);
     contourImage.value!.getNode().x(0).y(0);
 }
 
+// Confirm the crop and process the image
 function onConfirmPress() {
     const matSrc = cv.matFromImageData(imageStore.photoCaptured!);
     const matPerspectiveTransformed = extractPaperByPerspectiveTransform(matSrc, imageStore.photoPerspectiveCropPoints);
@@ -81,6 +93,7 @@ function onConfirmPress() {
     matDst.delete();
 }
 
+// Retake the photo
 function onRetakePress() {
     router.push({ name: "capture-photo-scan" })
 }
