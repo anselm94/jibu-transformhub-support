@@ -1,15 +1,13 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
+import cv from "@techstark/opencv-js";
+import { onBeforeUnmount, onMounted, useTemplateRef } from 'vue';
 import { useRouter } from "vue-router";
 import WebCam from '../components/WebCam.vue';
-import { useImageStore } from '../store';
 import { convertDataUrlToImageData, findPaperContour, getCornerPoints } from '../lib/image-processing';
-import cv from "@techstark/opencv-js"
+import { useImageStore } from '../store';
 
 const router = useRouter()
 const imageStore = useImageStore()
-
-const availableCameraCount = ref(0)
 
 const webcamPreview = useTemplateRef("webcamPreview");
 
@@ -23,8 +21,7 @@ onBeforeUnmount(() => {
 
 /// Event Handlers
 
-function onCameraReady(_: string, deviceIds: string[]) {
-    availableCameraCount.value = deviceIds.length
+function onCameraReady() {
 }
 
 function onPhotoUpload(evt: Event) {
@@ -32,46 +29,37 @@ function onPhotoUpload(evt: Event) {
     if (file) {
         const fileReader = new FileReader();
         fileReader.onload = async () => {
-            imageStore.photoCaptured = await convertDataUrlToImageData(fileReader.result as string)
+            const uploadPhotoImageData = await convertDataUrlToImageData(fileReader.result as string, window.innerWidth, window.innerHeight);
+            imageStore.photoCaptured = uploadPhotoImageData;
 
-            detectPaperContourAndNavigate();
+            const matPhoto = cv.matFromImageData(uploadPhotoImageData);
+
+            detectPaperContourAndNavigate(matPhoto);
+            matPhoto.delete();
         }
         fileReader.readAsDataURL(file);
     }
 }
 
-function onCameraCapture() {
-    const capturedImageData = webcamPreview.value?.getImageData();
+async function onCameraCapture() {
+    const capturedImageData = await webcamPreview.value?.capturePhoto();
     if (!capturedImageData) return
 
     imageStore.photoCaptured = capturedImageData
 
-    detectPaperContourAndNavigate();
+    const matPhoto = cv.matFromImageData(capturedImageData);
+    detectPaperContourAndNavigate(matPhoto);
+    matPhoto.delete();
 }
 
-function detectPaperContourAndNavigate() {
-    const matCapturedImage = cv.matFromImageData(imageStore.photoCaptured!);
-    const paperContour = findPaperContour(matCapturedImage);
+function detectPaperContourAndNavigate(matImg: cv.Mat) {
+    const paperContour = findPaperContour(matImg);
     if (paperContour) {
         const cornerPoints = getCornerPoints(paperContour)
         imageStore.photoPerspectiveCropPoints = cornerPoints
     }
-    matCapturedImage.delete()
 
     router.push({ name: "edit-photo-crop" })
-}
-
-async function onCameraFlip() {
-    if (webcamPreview.value) {
-        const availableCameras = await webcamPreview.value.getAvailableCameras();
-        if (availableCameras.length > 1) {
-            const deviceId = availableCameras.find((camera) => camera.deviceId !== webcamPreview.value?.getCurrentCameraDeviceId())?.deviceId
-            if (deviceId) {
-                webcamPreview.value.stopCameraPreview();
-                webcamPreview.value.startCameraPreview(deviceId);
-            }
-        }
-    }
 }
 </script>
 
@@ -104,14 +92,7 @@ async function onCameraFlip() {
                     </button>
                 </div>
                 <div class="justify-self-center">
-                    <button class="text-white rounded-full p-4 bg-black-overlay-200 active:bg-black-overlay-400"
-                        @click="onCameraFlip" v-if="availableCameraCount > 1">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                    </button>
+                    <div class="w-24 h-24"></div>
                 </div>
             </div>
         </div>

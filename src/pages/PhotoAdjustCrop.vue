@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import cv from "@techstark/opencv-js";
-import { computed, useTemplateRef } from 'vue';
+import Konva from "konva";
+import { computed, onMounted, useTemplateRef } from 'vue';
 import { useRouter } from 'vue-router';
 import { convertCvMatToImageData, convertImageDataToCanvas, extractPaperByPerspectiveTransform } from '../lib/image-processing';
 import { useImageStore } from '../store';
-import Konva from "konva";
 
 type VueKonvaProxy<Group> = { getNode(): Group };
 
@@ -19,33 +19,45 @@ const contourP1 = useTemplateRef<VueKonvaProxy<Konva.Circle>>('p1');
 const contourP2 = useTemplateRef<VueKonvaProxy<Konva.Circle>>('p2');
 const contourP3 = useTemplateRef<VueKonvaProxy<Konva.Circle>>('p3');
 
-const imageDataUrl = computed(() => imageStore.photoCaptured ? convertImageDataToCanvas(imageStore.photoCaptured) : undefined)
 const windowWidth = window.innerWidth
 const windowHeight = window.innerHeight
+const imageToWindowScale = computed(() => imageStore.photoCaptured?.width ? windowWidth / imageStore.photoCaptured.width : 1)
+
 const polygonCornerPoints = computed(() => [
-    imageStore.photoPerspectiveCropPoints.topLeftCorner.x,
-    imageStore.photoPerspectiveCropPoints.topLeftCorner.y,
-    imageStore.photoPerspectiveCropPoints.topRightCorner.x,
-    imageStore.photoPerspectiveCropPoints.topRightCorner.y,
-    imageStore.photoPerspectiveCropPoints.bottomRightCorner.x,
-    imageStore.photoPerspectiveCropPoints.bottomRightCorner.y,
-    imageStore.photoPerspectiveCropPoints.bottomLeftCorner.x,
-    imageStore.photoPerspectiveCropPoints.bottomLeftCorner.y,
+    imageStore.photoPerspectiveCropPoints.topLeftCorner.x * imageToWindowScale.value,
+    imageStore.photoPerspectiveCropPoints.topLeftCorner.y * imageToWindowScale.value,
+    imageStore.photoPerspectiveCropPoints.topRightCorner.x * imageToWindowScale.value,
+    imageStore.photoPerspectiveCropPoints.topRightCorner.y * imageToWindowScale.value,
+    imageStore.photoPerspectiveCropPoints.bottomRightCorner.x * imageToWindowScale.value,
+    imageStore.photoPerspectiveCropPoints.bottomRightCorner.y * imageToWindowScale.value,
+    imageStore.photoPerspectiveCropPoints.bottomLeftCorner.x * imageToWindowScale.value,
+    imageStore.photoPerspectiveCropPoints.bottomLeftCorner.y * imageToWindowScale.value,
 ])
+
+onMounted(async () => {
+    if (imageStore.photoCaptured && contourImage.value) {
+        const canvas = await convertImageDataToCanvas(imageStore.photoCaptured, windowWidth, windowHeight)
+        contourImage.value.getNode().image(canvas)
+    }
+})
 
 /// Event Handlers
 
 function onP0DragMove() {
-    imageStore.photoPerspectiveCropPoints.topLeftCorner = contourP0.value!.getNode().getPosition()
+    imageStore.photoPerspectiveCropPoints.topLeftCorner.x = contourP0.value!.getNode().getPosition().x / imageToWindowScale.value
+    imageStore.photoPerspectiveCropPoints.topLeftCorner.y = contourP0.value!.getNode().getPosition().y / imageToWindowScale.value
 }
 function onP1DragMove() {
-    imageStore.photoPerspectiveCropPoints.topRightCorner = contourP1.value!.getNode().getPosition()
+    imageStore.photoPerspectiveCropPoints.topRightCorner.x = contourP1.value!.getNode().getPosition().x / imageToWindowScale.value
+    imageStore.photoPerspectiveCropPoints.topRightCorner.y = contourP1.value!.getNode().getPosition().y / imageToWindowScale.value
 }
 function onP2DragMove() {
-    imageStore.photoPerspectiveCropPoints.bottomRightCorner = contourP2.value!.getNode().getPosition()
+    imageStore.photoPerspectiveCropPoints.bottomRightCorner.x = contourP2.value!.getNode().getPosition().x / imageToWindowScale.value
+    imageStore.photoPerspectiveCropPoints.bottomRightCorner.y = contourP2.value!.getNode().getPosition().y / imageToWindowScale.value
 }
 function onP3DragMove() {
-    imageStore.photoPerspectiveCropPoints.bottomLeftCorner = contourP3.value!.getNode().getPosition()
+    imageStore.photoPerspectiveCropPoints.bottomLeftCorner.x = contourP3.value!.getNode().getPosition().x / imageToWindowScale.value
+    imageStore.photoPerspectiveCropPoints.bottomLeftCorner.y = contourP3.value!.getNode().getPosition().y / imageToWindowScale.value
 }
 
 function onOtherDragMove() {
@@ -80,27 +92,27 @@ function onRetakePress() {
         <div class="relative h-full w-full">
             <v-stage ref="stage" :width="windowWidth" :height="windowHeight">
                 <v-layer draggable="false">
-                    <v-image ref="photo-image" @dragmove="onOtherDragMove" :image="imageDataUrl" draggable="false" />
+                    <v-image ref="photo-image" @dragmove="onOtherDragMove" draggable="false" />
                 </v-layer>
                 <v-layer draggable="false">
                     <v-line ref="contour-polygon" @dragmove="onOtherDragMove" :points="polygonCornerPoints"
                         stroke="#ff0000" strokeWidth=5 draggable="false" closed="true" />
                     <v-circle ref="p0" @dragmove="onP0DragMove"
-                        :x="imageStore.photoPerspectiveCropPoints.topLeftCorner.x"
-                        :y="imageStore.photoPerspectiveCropPoints.topLeftCorner.y" radius=10 fill="#00ff00"
-                        draggable="true" />
+                        :x="imageStore.photoPerspectiveCropPoints.topLeftCorner.x * imageToWindowScale"
+                        :y="imageStore.photoPerspectiveCropPoints.topLeftCorner.y * imageToWindowScale" radius=10
+                        fill="#00ff00" draggable="true" />
                     <v-circle ref="p1" @dragmove="onP1DragMove"
-                        :x="imageStore.photoPerspectiveCropPoints.topRightCorner.x"
-                        :y="imageStore.photoPerspectiveCropPoints.topRightCorner.y" radius=10 fill="#00ff00"
-                        draggable="true" />
+                        :x="imageStore.photoPerspectiveCropPoints.topRightCorner.x * imageToWindowScale"
+                        :y="imageStore.photoPerspectiveCropPoints.topRightCorner.y * imageToWindowScale" radius=10
+                        fill="#00ff00" draggable="true" />
                     <v-circle ref="p2" @dragmove="onP2DragMove"
-                        :x="imageStore.photoPerspectiveCropPoints.bottomRightCorner.x"
-                        :y="imageStore.photoPerspectiveCropPoints.bottomRightCorner.y" radius=10 fill="#00ff00"
-                        draggable="true" />
+                        :x="imageStore.photoPerspectiveCropPoints.bottomRightCorner.x * imageToWindowScale"
+                        :y="imageStore.photoPerspectiveCropPoints.bottomRightCorner.y * imageToWindowScale" radius=10
+                        fill="#00ff00" draggable="true" />
                     <v-circle ref="p3" @dragmove="onP3DragMove"
-                        :x="imageStore.photoPerspectiveCropPoints.bottomLeftCorner.x"
-                        :y="imageStore.photoPerspectiveCropPoints.bottomLeftCorner.y" radius=10 fill="#00ff00"
-                        draggable="true" />
+                        :x="imageStore.photoPerspectiveCropPoints.bottomLeftCorner.x * imageToWindowScale"
+                        :y="imageStore.photoPerspectiveCropPoints.bottomLeftCorner.y * imageToWindowScale" radius=10
+                        fill="#00ff00" draggable="true" />
                 </v-layer>
             </v-stage>
         </div>

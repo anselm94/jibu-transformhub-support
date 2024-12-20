@@ -19,7 +19,7 @@ Repository containing work related to supporting Jibu Inc. as part of TRANSFORM 
    ```
 6. The server is started at http://127.0.0.1:5000
 
-### 1. Frontend - NodeJS
+### 2. Frontend - NodeJS
 
 1. Install NodeJS - [Download](https://nodejs.org/en/download/package-manager)
 2. Install NPM packages

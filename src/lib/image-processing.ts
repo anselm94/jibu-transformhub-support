@@ -31,39 +31,81 @@ export function convertCvMatToImageData(mat: cv.Mat): ImageData {
 }
 
 export function convertImageDataToCanvas(
-  imageData: ImageData
-): HTMLCanvasElement {
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Canvas 2D context is not supported");
-  }
-  canvas.setAttribute("id", "_temp_canvas");
-  canvas.width = imageData.width;
-  canvas.height = imageData.height;
+  imageData: ImageData,
+  canvasWidth: number,
+  canvasHeight: number
+): Promise<HTMLCanvasElement> {
+  return new Promise((resolve) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = imageData.width;
+    canvas.height = imageData.height;
 
-  context.putImageData(imageData, 0, 0);
+    const context = canvas.getContext("2d")!;
+    context.putImageData(imageData, 0, 0);
 
-  return canvas;
+    const imgObject = new Image();
+    imgObject.onload = () => {
+      const canvasTarget = document.createElement("canvas");
+      canvasTarget.width = canvasWidth;
+      canvasTarget.height = canvasHeight;
+
+      const ctxCanvasTarget = canvasTarget.getContext("2d")!;
+      const xScale = imageData.width / canvasWidth;
+      const yScale = imageData.height / canvasHeight;
+      ctxCanvasTarget.scale(1 / xScale, 1 / yScale);
+      ctxCanvasTarget.drawImage(imgObject, 0, 0);
+      resolve(canvasTarget);
+    };
+    imgObject.src = canvas.toDataURL();
+  });
 }
 
 export async function convertDataUrlToImageData(
-  dataUrl: string
+  dataUrl: string,
+  canvasWidth: number,
+  canvasHeight: number
 ): Promise<ImageData> {
   const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Canvas 2D context is not supported");
-  }
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+  const context = canvas.getContext("2d")!;
 
   const promise = new Promise<ImageData>((resolve) => {
     const image = new Image();
     image.src = dataUrl;
     image.onload = () => {
-      canvas.width = image.width;
-      canvas.height = image.height;
-      context.drawImage(image, 0, 0);
-      resolve(context.getImageData(0, 0, image.width, image.height));
+      const canvasAspectRatio = canvasWidth / canvasHeight;
+      const imageAspectRatio = image.width / image.height;
+      let imageWidth = 0;
+      let imageHeight = 0;
+      let dx = 0;
+      let dy = 0;
+      if (imageAspectRatio > canvasAspectRatio) {
+        // image is wider than canvas
+        imageWidth = canvasWidth;
+        imageHeight = canvasWidth / imageAspectRatio;
+        dx = 0;
+        dy = (canvasHeight - imageHeight) / 2;
+      } else {
+        // image is taller than canvas
+        imageWidth = canvasHeight * imageAspectRatio;
+        imageHeight = canvasHeight;
+        dx = (canvasWidth - imageWidth) / 2;
+        dy = 0;
+      }
+      context.drawImage(
+        image,
+        0,
+        0,
+        image.width,
+        image.height,
+        dx,
+        dy,
+        imageWidth,
+        imageHeight
+      );
+      const imageData = context.getImageData(0, 0, canvasWidth, canvasHeight);
+      resolve(imageData);
     };
   });
   return promise;
